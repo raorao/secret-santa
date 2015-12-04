@@ -17,6 +17,7 @@ require 'dotenv'
 #and getter values, as well as a phone number to receive the message.
 
 module SecretSanta
+  class NoValidAssignment < StandardError; end;
 
   extend self
 
@@ -26,9 +27,11 @@ module SecretSanta
       getter = assign participant, information, participants, assignments
       assignments[participant] = getter
     end
-    
-    return assign_all participants if assignments.value? nil
-    return assignments 
+
+    return assignments
+
+  rescue NoValidAssignment
+    assign_all participants
   end
 
   def send_all_assignments assignments, phone_numbers
@@ -54,7 +57,9 @@ module SecretSanta
     remaining -= information[:exclude]
     remaining.delete giver
     remaining.delete assignments.invert[giver]
-    return remaining.sample
+    raise NoValidAssignment if remaining.empty?
+
+    remaining.sample
   end
 
   def send_assignment giver, getter, phone_number
