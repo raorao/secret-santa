@@ -1,20 +1,20 @@
 require 'twilio-ruby'
 require 'dotenv'
 
-#input of assign_all expected as hash. Each key in hash is a unique name, 
-#each value is another hash. the interior can optionally include an array 
-#with the key 'exclude', specifying those participants tho which the given 
-# individual will not be assigned. 
+#input of assign_all expected as hash. Each key in hash is a unique name,
+#each value is another hash. the interior can optionally include an array
+#with the key 'exclude', specifying those participants tho which the given
+# individual will not be assigned.
 
-#output of assign_all is a hash of participant names, with the key being 
-#the gift giver and the value being the assigned gift giver. 
+#output of assign_all is a hash of participant names, with the key being
+#the gift giver and the value being the assigned gift giver.
 
 #input of send_all_assignments is two hashes, both with giver names as keys.
 #the assignments hash points to getter names, the phone_numbers hash points
-#to valid phone numbers that can receive text messages. 
+#to valid phone numbers that can receive text messages.
 
 #input of send_backup_message is the assignment hash of giver key values
-#and getter values, as well as a phone number to receive the message. 
+#and getter values, as well as a phone number to receive the message.
 
 module SecretSanta
 
@@ -22,7 +22,7 @@ module SecretSanta
 
   def assign_all participants
     assignments = {}
-    participants.each do |participant,information| 
+    participants.each do |participant,information|
       getter = assign participant, information, participants, assignments
       assignments[participant] = getter
     end
@@ -47,10 +47,10 @@ module SecretSanta
     puts "a backup of all assignments has been sent to #{phone_number}"
   end
 
-  private 
+  private
 
   def assign giver, information, participants, assignments
-    remaining = participants.keys - assignments.values 
+    remaining = participants.keys - assignments.values
     remaining -= information[:exclude]
     remaining.delete giver
     remaining.delete assignments.invert[giver]

@@ -18,8 +18,8 @@ end
 
 def run_tests iterations
 
-  #iterates in order to check random input. adjust number of tests at method call. 
-  iterations.times do 
+  #iterates in order to check random input. adjust number of tests at method call.
+  iterations.times do
 
     #testing dependency
     assignments = SecretSanta.assign_all(PARTICIPANTS)
@@ -47,7 +47,7 @@ def run_tests iterations
       assert(assignments[giver] != giver)
     end
 
-    #no individual is assigned to the person assigned to them 
+    #no individual is assigned to the person assigned to them
     PARTICIPANTS.each do |giver, info|
       assert(assignments[assignments[giver]] != giver)
     end
