@@ -22,13 +22,10 @@ module SecretSanta
   extend self
 
   def assign_all participants
-    assignments = {}
-    participants.each do |participant,information|
-      getter = assign participant, information, participants, assignments
-      assignments[participant] = getter
+    participants.each_with_object({}) do |entry, assignments|
+      participant, information = entry
+      assignments[participant] = assign participant, information, participants, assignments
     end
-
-    return assignments
 
   rescue NoValidAssignment
     assign_all participants
