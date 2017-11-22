@@ -2,49 +2,91 @@ require 'twilio-ruby'
 require 'dotenv'
 
 module SecretSanta
-  class NoValidAssignment < StandardError; end;
+  class Participant
+    attr_reader :name, :phone_number
+    attr_accessor :assignment
+
+    def initialize(name:, phone_number:, exclusions:)
+      @name = name
+      @phone_number = phone_number
+      @exclusions = exclusions
+      @assignment = nil
+    end
+
+    def ==(other)
+      other.name == self.name
+    end
+
+    def valid?
+      !invalid?
+    end
+
+    def invalid?
+      assignment_is_excluded? || assignment_is_self? || assignment_is_circular?
+    end
+
+    def to_participant_message
+      "Hey #{name}, you are #{assignment.name}'s secret santa"
+    end
+
+    def to_backup_message
+      "#{name} has #{assignment.name}"
+    end
+
+    private
+
+    attr_reader :exclusions
+
+    def assignment_is_excluded?
+      exclusions.include? assignment.name
+    end
+
+    def assignment_is_self?
+      assignment == self
+    end
+
+    def assignment_is_circular?
+      assignment.assignment == self
+    end
+  end
 
   extend self
 
-  # input of assign_all expected as hash. Each key in hash is a unique name,
-  # each value is another hash. the interior can optionally include an array
-  # with the key 'exclude', specifying those participants tho which the given
-  # individual will not be assigned.
+  # produces assignments for secret santa. each entry in participant info must
+  # look like this:
   #
-  # @param [Hash{String => Hash}] participants with options. e.g. `{ 'A' => { exclude: ['B','C'] } }`
-  # @return [Hash{String => String}] givers and getters. e.g. `{ 'A' => 'D' }`
-  def assign_all participants
-    participants.each_with_object({}) do |entry, assignments|
-      participant, information = entry
-      assignments[participant] = assign participant, information, participants, assignments
-    end
+  #  `{ name: 'A', exclusions: ['B','C'], phone_number: "555-555-5555" }`
+  #
+  # where exclusions denotes the participants that `A` cannot give presents to.
+  #
+  # @param [Array<Hash>] participant info.
+  #   * :name [String] name of participant. must be unique.
+  #   * :phone_number [String] phone number to contact, used by Twillio.
+  #   * :exclusions [Array<String>] names of participants to which the individual cannot give presents.
+  # @return [Array<Particpant>]
+  def assign_all participants_hash
+    participants = participants_hash.map { |info| Participant.new(info) }
 
-  rescue NoValidAssignment
-    assign_all participants
+    do_assign_all participants
   end
 
-  # input of send_all_assignments is two hashes, both with giver names as keys.
-  # the assignments hash points to getter names, the phone_numbers hash points
-  # to valid phone numbers that can receive text messages.
-
-  # @param [Hash{String => String}] givers and getters. e.g. `{ 'A' => 'D' }`
-  # @param [Hash{String => String}] lookup table of phone numbers. e.g. `{ 'A' => "555-867-5309" } }`
-  def send_all_assignments assignments, phone_numbers
-    assignments.each do |giver, getter|
-      send_assignment giver, getter, phone_numbers[giver]
+  # Send text messages to all participants with their assignment.
+  #
+  # @param [Array<Particpant>]
+  def notify_participants participants
+    participants.each do |participant|
+      send_message participant.to_participant_message, participant.phone_number
+      puts "#{participant.name} has received a text message at #{participant.phone_number}"
     end
   end
 
-  # input of send_backup_message is the assignment hash of giver key values
-  # and getter values, as well as a phone number to receive the message.
+  # sends a backup message to a specified phone number with all assignments.
 
-  # @param [Hash{String => String}] givers and getters. e.g. `{ 'A' => 'D' }`
+  # @param [Array<Particpant>]
   # @param [String] number to contact. e.g. `"555-867-5309"`
-  def send_backup_message assignments, phone_number
-    message = "here are the secret santa assignments:\n"
-    assignments.each do |giver, getter|
-      message += "#{giver} has #{getter}\n"
-    end
+  def send_backup_message participants, phone_number
+    intro = "here are the secret santa assignments:\n"
+    message = intro + participants.map(&:to_backup_message).join("\n")
 
     send_message message, phone_number
     puts "a backup of all assignments has been sent to #{phone_number}"
@@ -52,31 +94,24 @@ module SecretSanta
 
   private
 
-  def assign giver, information, participants, assignments
-    remaining = participants.keys - assignments.values
-    remaining -= information[:exclude]
-    remaining.delete giver
-    remaining.delete assignments.invert[giver]
-    raise NoValidAssignment if remaining.empty?
+  def do_assign_all(participants)
+    new_participants = participants.
+      shuffle.
+      zip(participants).
+      map { |giver, getter| giver.assignment = getter }
 
-    remaining.sample
-  end
-
-  def send_assignment giver, getter, phone_number
-    message = "Hey #{giver}, you are #{getter}'s secret santa"
-    send_message message, phone_number
-    puts "#{giver} has received a text message at #{phone_number}"
+    new_participants.all?(&:valid?) ? new_participants : do_assign_all(participants)
   end
 
   def send_message message, phone_number
-    Dotenv.load
-    client = Twilio::REST::Client.new ENV['TWILIO_SID'], ENV['TWILIO_AUTH']
+    # Dotenv.load
+    # client = Twilio::REST::Client.new ENV['TWILIO_SID'], ENV['TWILIO_AUTH']
 
-    client.account.messages.create(
-      :from => ENV['TWILIO_NUMBER'],
-      :to => phone_number,
-      :body => message
-    )
+    # client.account.messages.create(
+    #   :from => ENV['TWILIO_NUMBER'],
+    #   :to => phone_number,
+    #   :body => message
+    # )
   end
 
 end
