@@ -1,26 +1,18 @@
 require 'twilio-ruby'
 require 'dotenv'
 
-#input of assign_all expected as hash. Each key in hash is a unique name,
-#each value is another hash. the interior can optionally include an array
-#with the key 'exclude', specifying those participants tho which the given
-# individual will not be assigned.
-
-#output of assign_all is a hash of participant names, with the key being
-#the gift giver and the value being the assigned gift giver.
-
-#input of send_all_assignments is two hashes, both with giver names as keys.
-#the assignments hash points to getter names, the phone_numbers hash points
-#to valid phone numbers that can receive text messages.
-
-#input of send_backup_message is the assignment hash of giver key values
-#and getter values, as well as a phone number to receive the message.
-
 module SecretSanta
   class NoValidAssignment < StandardError; end;
 
   extend self
 
+  # input of assign_all expected as hash. Each key in hash is a unique name,
+  # each value is another hash. the interior can optionally include an array
+  # with the key 'exclude', specifying those participants tho which the given
+  # individual will not be assigned.
+  #
+  # @param [Hash{String => Hash}] participants with options. e.g. `{ 'A' => { exclude: ['B','C'] } }`
+  # @return [Hash{String => String}] givers and getters. e.g. `{ 'A' => 'D' }`
   def assign_all participants
     participants.each_with_object({}) do |entry, assignments|
       participant, information = entry
@@ -31,12 +23,23 @@ module SecretSanta
     assign_all participants
   end
 
+  # input of send_all_assignments is two hashes, both with giver names as keys.
+  # the assignments hash points to getter names, the phone_numbers hash points
+  # to valid phone numbers that can receive text messages.
+
+  # @param [Hash{String => String}] givers and getters. e.g. `{ 'A' => 'D' }`
+  # @param [Hash{String => String}] lookup table of phone numbers. e.g. `{ 'A' => "555-867-5309" } }`
   def send_all_assignments assignments, phone_numbers
     assignments.each do |giver, getter|
       send_assignment giver, getter, phone_numbers[giver]
     end
   end
 
+  # input of send_backup_message is the assignment hash of giver key values
+  # and getter values, as well as a phone number to receive the message.
+
+  # @param [Hash{String => String}] givers and getters. e.g. `{ 'A' => 'D' }`
+  # @param [String] number to contact. e.g. `"555-867-5309"`
   def send_backup_message assignments, phone_number
     message = "here are the secret santa assignments:\n"
     assignments.each do |giver, getter|
