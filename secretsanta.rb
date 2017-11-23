@@ -2,6 +2,9 @@ require 'twilio-ruby'
 require 'dotenv'
 
 module SecretSanta
+
+  extend self
+
   class Participant
     attr_reader :name, :phone_number
     attr_accessor :assignment
@@ -50,7 +53,46 @@ module SecretSanta
     end
   end
 
-  extend self
+  module SMSClient
+
+    extend self
+
+    # Send text messages to all participants with their assignment.
+    #
+    # @param [Array<Particpant>]
+    def notify_participants participants
+      participants.each do |participant|
+        send_message participant.to_participant_message, participant.phone_number
+        puts "#{participant.name} has received a text message at #{participant.phone_number}"
+      end
+    end
+
+    # sends a backup message to a specified phone number with all assignments.
+
+    # @param [Array<Particpant>]
+    # @param [String] number to contact. e.g. `"555-867-5309"`
+    def send_backup_message participants, phone_number
+      intro = "here are the secret santa assignments:\n"
+      message = intro + participants.map(&:to_backup_message).join("\n")
+
+      send_message message, phone_number
+      puts "a backup of all assignments has been sent to #{phone_number}"
+    end
+
+    private
+
+    def send_message message, phone_number
+      Dotenv.load
+
+      client = Twilio::REST::Client.new ENV['TWILIO_SID'], ENV['TWILIO_AUTH']
+
+      client.api.account.messages.create(
+        :from => ENV['TWILIO_NUMBER'],
+        :to => phone_number,
+        :body => message
+      )
+    end
+  end
 
   # produces assignments for secret santa. each entry in participant info must
   # look like this:
@@ -70,28 +112,6 @@ module SecretSanta
     do_assign_all participants
   end
 
-  # Send text messages to all participants with their assignment.
-  #
-  # @param [Array<Particpant>]
-  def notify_participants participants
-    participants.each do |participant|
-      send_message participant.to_participant_message, participant.phone_number
-      puts "#{participant.name} has received a text message at #{participant.phone_number}"
-    end
-  end
-
-  # sends a backup message to a specified phone number with all assignments.
-
-  # @param [Array<Particpant>]
-  # @param [String] number to contact. e.g. `"555-867-5309"`
-  def send_backup_message participants, phone_number
-    intro = "here are the secret santa assignments:\n"
-    message = intro + participants.map(&:to_backup_message).join("\n")
-
-    send_message message, phone_number
-    puts "a backup of all assignments has been sent to #{phone_number}"
-  end
-
   private
 
   def do_assign_all(participants)
@@ -102,19 +122,6 @@ module SecretSanta
 
     new_participants.all?(&:valid?) ? new_participants : do_assign_all(participants)
   end
-
-  def send_message message, phone_number
-    Dotenv.load
-
-    client = Twilio::REST::Client.new ENV['TWILIO_SID'], ENV['TWILIO_AUTH']
-
-    client.api.account.messages.create(
-      :from => ENV['TWILIO_NUMBER'],
-      :to => phone_number,
-      :body => message
-    )
-  end
-
 end
 
 
