@@ -104,14 +104,15 @@ module SecretSanta
   end
 
   def send_message message, phone_number
-    # Dotenv.load
-    # client = Twilio::REST::Client.new ENV['TWILIO_SID'], ENV['TWILIO_AUTH']
+    Dotenv.load
 
-    # client.account.messages.create(
-    #   :from => ENV['TWILIO_NUMBER'],
-    #   :to => phone_number,
-    #   :body => message
-    # )
+    client = Twilio::REST::Client.new ENV['TWILIO_SID'], ENV['TWILIO_AUTH']
+
+    client.api.account.messages.create(
+      :from => ENV['TWILIO_NUMBER'],
+      :to => phone_number,
+      :body => message
+    )
   end
 
 end
